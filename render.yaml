@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: loopp-customer-support-agent
+    name: philh-loopp-customer-support-agent
     runtime: docker
     plan: starter
     region: oregon
