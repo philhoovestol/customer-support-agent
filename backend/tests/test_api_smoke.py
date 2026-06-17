@@ -1,3 +1,4 @@
+import json
 import os
 
 from fastapi.testclient import TestClient
@@ -40,6 +41,77 @@ def test_chat_endpoint_runs_refund_graph():
     assert not any(
         event["event_type"] == "refund_created" for event in payload["audit_events"]
     )
+
+
+def test_reasoning_logs_include_redacted_turn_context_and_policy_evidence():
+    with TestClient(app) as client:
+        payload = client.post(
+            "/api/chat",
+            json={
+                "message": (
+                    "Contact shopper@example.com and refund ITEM-1003 from ORD-1002. "
+                    "The headphones are uncomfortable."
+                ),
+            },
+        ).json()
+
+    request_event = next(
+        event for event in payload["audit_events"] if event["event_type"] == "request_received"
+    )
+    completion_event = next(
+        event for event in payload["audit_events"] if event["event_type"] == "turn_completed"
+    )
+    policy_event = next(
+        event for event in payload["audit_events"] if event["event_type"] == "policy_decision"
+    )
+    turn_events = [
+        event for event in payload["audit_events"] if event["turn_id"] == request_event["turn_id"]
+    ]
+
+    assert request_event["turn_id"].startswith("turn-")
+    assert request_event["turn_sequence"] == 1
+    assert len(turn_events) == len(payload["audit_events"])
+    assert policy_event["turn_id"] == request_event["turn_id"]
+    assert sorted(event["sequence"] for event in turn_events) == list(
+        range(1, len(turn_events) + 1)
+    )
+    assert request_event["payload"]["message"].startswith("Contact [redacted-email]")
+    assert "shopper@example.com" not in request_event["payload"]["message"]
+    assert "shopper@example.com" not in json.dumps(turn_events)
+    assert request_event["payload"]["detected_intent"] == "refund_request"
+    assert request_event["payload"]["entities"] == {
+        "order_ids": ["ORD-1002"],
+        "item_ids": ["ITEM-1003"],
+        "email_present": True,
+    }
+    assert completion_event["payload"]["status"] == "completed"
+    assert completion_event["payload"]["decision"] == "approve"
+    assert completion_event["payload"]["case_id"].startswith("REF-")
+    assert policy_event["payload"]["policy_version"] == "refund-policy-v1"
+    assert policy_event["payload"]["winning_rule"] == "within_policy"
+    assert any(
+        check["rule"] == "within_policy" and check["status"] == "passed"
+        for check in policy_event["payload"]["policy_checks"]
+    )
+    assert any(
+        check["rule"] == "automatic_refund_limit" and check["status"] == "passed"
+        for check in policy_event["payload"]["policy_checks"]
+    )
+
+
+def test_turn_sequence_increments_within_a_session():
+    with TestClient(app) as client:
+        first = client.post("/api/chat", json={"message": "Hello"}).json()
+        second = client.post(
+            "/api/chat",
+            json={"session_id": first["session_id"], "message": "I need refund help"},
+        ).json()
+
+    request_events = [
+        event for event in second["audit_events"] if event["event_type"] == "request_received"
+    ]
+    assert sorted(event["turn_sequence"] for event in request_events) == [1, 2]
+    assert len({event["turn_id"] for event in request_events}) == 2
 
 
 def test_same_session_evaluates_each_new_request():
@@ -244,6 +316,114 @@ def test_denied_refund_acceptance_uses_natural_followup_language():
     assert any(event["event_type"] == "case_continuation" for event in second["audit_events"])
 
 
+def test_denied_refund_acceptance_uses_safe_model_reply(monkeypatch):
+    expected_reply = (
+        "Understood. If you need help with another refund, feel free to reach out."
+    )
+    original_llm = agent_graph.llm
+
+    class FriendlyFollowupLLM:
+        def invoke(self, messages):
+            if any(
+                getattr(message, "content", "") == "ok I understand"
+                for message in messages
+            ):
+                return AIMessage(content=expected_reply)
+            return original_llm.invoke(messages)
+
+    monkeypatch.setattr(agent_graph, "llm", FriendlyFollowupLLM())
+
+    with TestClient(app) as client:
+        first = client.post(
+            "/api/chat",
+            json={
+                "message": (
+                    "I need a refund for ORD-1007. I opened the serum but changed my mind."
+                ),
+            },
+        ).json()
+        second = client.post(
+            "/api/chat",
+            json={
+                "session_id": first["session_id"],
+                "message": "ok I understand",
+            },
+        ).json()
+
+    assert second["message"] == expected_reply
+    assert second["decision"] == "deny"
+    assert any(event["event_type"] == "case_continuation" for event in second["audit_events"])
+
+
+def test_denied_refund_gratitude_uses_safe_model_reply(monkeypatch):
+    expected_reply = (
+        "You're welcome! If you need any assistance with refunds or have any other "
+        "questions in the future, feel free to reach out. Have a great day!"
+    )
+    original_llm = agent_graph.llm
+
+    class FriendlyFollowupLLM:
+        def invoke(self, messages):
+            if any(
+                getattr(message, "content", "") == "thanks"
+                for message in messages
+            ):
+                return AIMessage(content=expected_reply)
+            return original_llm.invoke(messages)
+
+    monkeypatch.setattr(agent_graph, "llm", FriendlyFollowupLLM())
+
+    with TestClient(app) as client:
+        first = client.post(
+            "/api/chat",
+            json={
+                "message": (
+                    "I need a refund for ORD-1007. I opened the serum but changed my mind."
+                ),
+            },
+        ).json()
+        second = client.post(
+            "/api/chat",
+            json={"session_id": first["session_id"], "message": "thanks"},
+        ).json()
+
+    assert second["message"] == expected_reply
+    assert second["decision"] == "deny"
+    assert any(event["event_type"] == "case_continuation" for event in second["audit_events"])
+
+
+def test_gratitude_rejects_model_reply_that_claims_refund_was_processed(monkeypatch):
+    original_llm = agent_graph.llm
+
+    class UnsafeFollowupLLM:
+        def invoke(self, messages):
+            if any(
+                getattr(message, "content", "") == "thanks"
+                for message in messages
+            ):
+                return AIMessage(content="You're welcome! Your refund was processed.")
+            return original_llm.invoke(messages)
+
+    monkeypatch.setattr(agent_graph, "llm", UnsafeFollowupLLM())
+
+    with TestClient(app) as client:
+        first = client.post(
+            "/api/chat",
+            json={
+                "message": (
+                    "I need a refund for ORD-1007. I opened the serum but changed my mind."
+                ),
+            },
+        ).json()
+        second = client.post(
+            "/api/chat",
+            json={"session_id": first["session_id"], "message": "thanks"},
+        ).json()
+
+    assert second["message"].startswith("You're welcome!")
+    assert "processed" not in second["message"]
+
+
 def test_denied_refund_human_request_escalates_same_case():
     with TestClient(app) as client:
         first = client.post(
@@ -258,7 +438,7 @@ def test_denied_refund_human_request_escalates_same_case():
             "/api/chat",
             json={
                 "session_id": first["session_id"],
-                "message": "can I talk to a person?",
+                "message": "raise this to a human agent",
             },
         ).json()
         cases = client.get("/api/admin/refund-cases").json()

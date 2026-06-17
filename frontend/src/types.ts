@@ -14,11 +14,28 @@ export interface PolicyResult {
   eligible_amount: number;
   order_id?: string | null;
   customer_id?: string | null;
+  policy_version?: string;
+  winning_rule?: string;
+  policy_checks?: PolicyCheck[];
+}
+
+export interface PolicyCheck {
+  rule: string;
+  label: string;
+  status: "passed" | "failed" | "not_applicable";
+  observed_value: unknown;
+  expected: string;
+  reason_code: string;
+  citation: string;
+  detail?: string;
 }
 
 export interface AuditEvent {
   id: number;
   session_id: string;
+  turn_id?: string | null;
+  turn_sequence?: number | null;
+  sequence?: number | null;
   event_type: string;
   payload: Record<string, unknown>;
   created_at: string;

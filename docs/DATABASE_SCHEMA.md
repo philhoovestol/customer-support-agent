@@ -141,9 +141,18 @@ Structured agent trace table. This is what powers the admin reasoning log.
 |---|---|---|
 | `id` | integer, primary key | Auto-increment event id. |
 | `session_id` | string/indexed | Chat/session id. |
-| `event_type` | string/indexed | Examples: `llm_step`, `tool_call`, `policy_decision`, `final_response`. |
-| `payload_json` | JSON string | Structured event payload. |
+| `event_type` | string/indexed | Examples: `request_received`, `llm_step`, `tool_call`, `policy_decision`, `final_response`, `turn_completed`. |
+| `payload_json` | JSON string | Structured, email-redacted event payload plus an internal per-turn trace envelope. |
 | `created_at` | datetime/indexed | Event timestamp. |
+
+The audit API promotes the internal trace envelope to optional top-level
+`turn_id`, `turn_sequence`, and `sequence` fields. This keeps existing rows
+readable while allowing new events to be grouped into complete customer turns.
+
+Policy results and `policy_decision` events include `policy_version`,
+`winning_rule`, and `policy_checks`. Each check records its rule and label,
+`passed`/`failed`/`not_applicable` status, observed value, expected condition,
+reason code, and policy citation.
 
 ## Current Snapshot
 

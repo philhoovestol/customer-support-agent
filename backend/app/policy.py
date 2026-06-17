@@ -12,6 +12,7 @@ from app.models import Customer, Order, OrderItem, RefundCase
 
 
 Decision = Literal["approve", "deny", "escalate", "need_more_info"]
+REFUND_POLICY_VERSION = "refund-policy-v1"
 
 NON_REFUNDABLE_CATEGORIES = {"digital", "gift_card"}
 HYGIENE_CATEGORIES = {"personal_care", "intimates"}
@@ -60,6 +61,34 @@ def _base_result(
 
 
 def evaluate_refund(
+    order: Order | None,
+    items: list[OrderItem],
+    requested_item_ids: list[str] | None,
+    reason: str,
+    customer: Customer | None = None,
+    today: date | None = None,
+) -> dict[str, Any]:
+    evaluation_date = today or date.today()
+    result = _evaluate_refund_decision(
+        order,
+        items,
+        requested_item_ids,
+        reason,
+        customer=customer,
+        today=evaluation_date,
+    )
+    return _attach_policy_evidence(
+        result,
+        order,
+        items,
+        requested_item_ids or [],
+        reason,
+        customer,
+        evaluation_date,
+    )
+
+
+def _evaluate_refund_decision(
     order: Order | None,
     items: list[OrderItem],
     requested_item_ids: list[str] | None,
@@ -288,6 +317,268 @@ def evaluate_refund(
     )
 
 
+def _attach_policy_evidence(
+    result: dict[str, Any],
+    order: Order | None,
+    items: list[OrderItem],
+    requested_item_ids: list[str],
+    reason: str,
+    customer: Customer | None,
+    evaluation_date: date,
+) -> dict[str, Any]:
+    reason_code = str((result.get("reason_codes") or ["WITHIN_POLICY"])[0])
+    winning_rule_by_reason = {
+        "ORDER_NOT_FOUND": "verified_order",
+        "ITEM_DETAILS_REQUIRED": "item_target_resolved",
+        "ITEM_NOT_FOUND": "item_matches_order",
+        "ORDER_ALREADY_CLOSED": "order_open",
+        "ORDER_NOT_DELIVERED": "order_delivered",
+        "OUTSIDE_RETURN_WINDOW": "return_window",
+        "FINAL_SALE_ITEM": "final_sale_exclusion",
+        "CONTRADICTORY_ITEM_CONDITION": "item_condition_consistency",
+        "NON_REFUNDABLE_CATEGORY": "category_eligibility",
+        "OPENED_HYGIENE_ITEM": "hygiene_condition",
+        "REFUND_OVER_500": "automatic_refund_limit",
+        "HIGH_REFUND_HISTORY": "refund_history",
+        "LEGAL_OR_FRAUD_RISK": "risk_language",
+        "WITHIN_POLICY": "within_policy",
+    }
+    winning_rule = winning_rule_by_reason.get(reason_code, reason_code.lower())
+
+    requested_set = set(requested_item_ids)
+    if order is None:
+        selected_items: list[OrderItem] = []
+    elif requested_item_ids:
+        selected_items = [
+            item for item in items if item.id in requested_set or item.sku in requested_set
+        ]
+    elif len(items) == 1:
+        selected_items = items
+    else:
+        selected_items = []
+
+    eligible_amount = round(
+        sum(item.unit_price * item.quantity for item in selected_items), 2
+    )
+    days_since_delivery = (
+        (evaluation_date - order.delivered_date).days
+        if order and order.delivered_date is not None
+        else None
+    )
+    hygiene_items = [item for item in selected_items if item.category in HYGIENE_CATEGORIES]
+    condition_sensitive_items = [
+        item for item in hygiene_items if item.opened and not item.damaged
+    ]
+    linked_customer = customer if order and customer and customer.id == order.customer_id else None
+    risk_terms = [
+        term
+        for term in ["chargeback", "lawsuit", "legal action", "fraud"]
+        if term in reason.lower()
+    ]
+
+    candidates = [
+        _policy_check(
+            "verified_order",
+            "Verified order",
+            order is not None,
+            order.id if order else "not found",
+            "Order exists",
+            "ORDER_NOT_FOUND",
+            "Refunds can only be evaluated against a verified order.",
+        ),
+        _policy_check(
+            "item_target_resolved",
+            "Specific refund item",
+            bool(requested_item_ids) or len(items) == 1,
+            requested_item_ids or f"{len(items)} items on order",
+            "Item IDs supplied or a single-item order",
+            "ITEM_DETAILS_REQUIRED",
+            "Refund eligibility is evaluated at the item level.",
+            applicable=order is not None,
+        ),
+        _policy_check(
+            "item_matches_order",
+            "Item belongs to order",
+            bool(selected_items),
+            [item.id for item in selected_items] or requested_item_ids or "no item selected",
+            "At least one requested item matches the order",
+            "ITEM_NOT_FOUND",
+            "Refund eligibility is evaluated at the item level.",
+            applicable=order is not None and (bool(requested_item_ids) or len(items) == 1),
+        ),
+        _policy_check(
+            "order_open",
+            "Order remains refundable",
+            bool(order and order.status not in {"cancelled", "refunded"}),
+            order.status if order else None,
+            "Status is not cancelled or refunded",
+            "ORDER_ALREADY_CLOSED",
+            "Cancelled or already-refunded orders cannot receive duplicate refunds.",
+            applicable=bool(selected_items),
+        ),
+        _policy_check(
+            "order_delivered",
+            "Order delivered",
+            bool(order and order.status == "delivered" and order.delivered_date is not None),
+            {
+                "status": order.status if order else None,
+                "delivered_date": order.delivered_date.isoformat()
+                if order and order.delivered_date
+                else None,
+            },
+            "Delivered status and delivery date present",
+            "ORDER_NOT_DELIVERED",
+            "Refunds are only available for delivered orders.",
+            applicable=bool(selected_items),
+        ),
+        _policy_check(
+            "return_window",
+            "Return window",
+            days_since_delivery is not None and days_since_delivery <= 30,
+            days_since_delivery,
+            "30 days or fewer since delivery",
+            "OUTSIDE_RETURN_WINDOW",
+            "Refund requests must be made within 30 days of delivery.",
+            applicable=days_since_delivery is not None,
+        ),
+        _policy_check(
+            "final_sale_exclusion",
+            "Final-sale exclusion",
+            not any(item.final_sale for item in selected_items),
+            [item.id for item in selected_items if item.final_sale] or "none",
+            "No selected item is final sale",
+            "FINAL_SALE_ITEM",
+            "Final sale items cannot be refunded, exchanged, or credited.",
+            applicable=bool(selected_items),
+        ),
+        _policy_check(
+            "item_condition_consistency",
+            "Item condition is consistent",
+            not (
+                condition_sensitive_items
+                and _disputes_opened_condition(reason.lower())
+            ),
+            {
+                "recorded_opened_items": [item.id for item in condition_sensitive_items],
+                "customer_disputes_opened": _disputes_opened_condition(reason.lower()),
+            },
+            "Customer statement does not conflict with recorded condition",
+            "CONTRADICTORY_ITEM_CONDITION",
+            "Cases with incomplete or contradictory policy data require human escalation.",
+            applicable=bool(condition_sensitive_items),
+        ),
+        _policy_check(
+            "category_eligibility",
+            "Refundable category",
+            not any(item.category in NON_REFUNDABLE_CATEGORIES for item in selected_items),
+            {
+                item.id: item.category
+                for item in selected_items
+                if item.category in NON_REFUNDABLE_CATEGORIES
+            }
+            or "all categories refundable",
+            "No selected item is a digital good or gift card",
+            "NON_REFUNDABLE_CATEGORY",
+            "Digital goods and gift cards are non-refundable once purchased.",
+            applicable=bool(selected_items),
+        ),
+        _policy_check(
+            "hygiene_condition",
+            "Hygiene-item condition",
+            not any(item.opened and not item.damaged for item in hygiene_items),
+            {
+                item.id: {"opened": item.opened, "damaged": item.damaged}
+                for item in hygiene_items
+            },
+            "Hygiene-sensitive items are unopened or damaged",
+            "OPENED_HYGIENE_ITEM",
+            "Opened personal-care and intimate items are refundable only for verified damage or defect.",
+            applicable=bool(hygiene_items),
+        ),
+        _policy_check(
+            "automatic_refund_limit",
+            "Automatic refund limit",
+            eligible_amount <= 500,
+            eligible_amount,
+            "Refund amount is $500 or less",
+            "REFUND_OVER_500",
+            "Refunds over $500 require human escalation.",
+            applicable=bool(selected_items),
+        ),
+        _policy_check(
+            "refund_history",
+            "Recent refund history",
+            bool(linked_customer and linked_customer.refund_count_last_12_months < 3),
+            linked_customer.refund_count_last_12_months if linked_customer else None,
+            "Fewer than 3 refunds in the past 12 months",
+            "HIGH_REFUND_HISTORY",
+            "Accounts with three or more refunds in 12 months require human review.",
+            applicable=linked_customer is not None,
+        ),
+        _policy_check(
+            "risk_language",
+            "Legal and fraud risk",
+            not risk_terms,
+            risk_terms or "none",
+            "No legal, fraud, or chargeback terms",
+            "LEGAL_OR_FRAUD_RISK",
+            "Legal, fraud, and chargeback-related cases require human escalation.",
+            applicable=bool(selected_items),
+        ),
+        _policy_check(
+            "within_policy",
+            "All applicable policy checks",
+            True,
+            "all applicable checks passed",
+            "No denial or escalation rule applies",
+            "WITHIN_POLICY",
+            "Delivered, non-final-sale items may be refunded within 30 days when no escalation rule applies.",
+            applicable=reason_code == "WITHIN_POLICY",
+        ),
+    ]
+
+    decisive_index = next(
+        (index for index, check in enumerate(candidates) if check["rule"] == winning_rule),
+        None,
+    )
+    if decisive_index is not None:
+        for index in range(decisive_index + 1, len(candidates)):
+            candidates[index]["status"] = "not_applicable"
+            candidates[index]["detail"] = "Skipped after the decisive rule."
+
+    return {
+        **result,
+        "policy_version": REFUND_POLICY_VERSION,
+        "winning_rule": winning_rule,
+        "policy_checks": candidates,
+    }
+
+
+def _policy_check(
+    rule: str,
+    label: str,
+    passed: bool,
+    observed_value: Any,
+    expected: str,
+    reason_code: str,
+    citation: str,
+    *,
+    applicable: bool = True,
+) -> dict[str, Any]:
+    status = "passed" if passed else "failed"
+    if not applicable:
+        status = "not_applicable"
+    return {
+        "rule": rule,
+        "label": label,
+        "status": status,
+        "observed_value": observed_value,
+        "expected": expected,
+        "reason_code": reason_code,
+        "citation": citation,
+    }
+
+
 def _disputes_opened_condition(reason_lower: str) -> bool:
     return any(pattern.search(reason_lower) for pattern in OPENED_CONDITION_DISPUTE_PATTERNS)
 
@@ -348,7 +639,7 @@ def _protect_against_duplicate_refund(
     order_id = result.get("order_id")
     selected_item_ids = {str(item_id) for item_id in result.get("selected_item_ids", [])}
     if not order_id or not selected_item_ids:
-        return result
+        return _with_duplicate_refund_evidence(result, [], applicable=False)
 
     statement = (
         select(RefundCase)
@@ -369,10 +660,10 @@ def _protect_against_duplicate_refund(
 
     duplicate_item_ids = sorted(selected_item_ids & refunded_item_ids)
     if not duplicate_item_ids:
-        return result
+        return _with_duplicate_refund_evidence(result, [])
 
     item_text = ", ".join(duplicate_item_ids)
-    return {
+    duplicate_result = {
         **result,
         "decision": "deny",
         "reason_codes": ["ITEM_ALREADY_REFUNDED"],
@@ -384,4 +675,36 @@ def _protect_against_duplicate_refund(
             "An item recorded in a completed refund case cannot be refunded again."
         ],
         "duplicate_item_ids": duplicate_item_ids,
+    }
+    return _with_duplicate_refund_evidence(duplicate_result, duplicate_item_ids)
+
+
+def _with_duplicate_refund_evidence(
+    result: dict[str, Any],
+    duplicate_item_ids: list[str],
+    *,
+    applicable: bool = True,
+) -> dict[str, Any]:
+    checks = [
+        check for check in result.get("policy_checks", []) if check.get("rule") != "duplicate_refund"
+    ]
+    checks.append(
+        _policy_check(
+            "duplicate_refund",
+            "Duplicate refund protection",
+            not duplicate_item_ids,
+            duplicate_item_ids or "none",
+            "No selected item appears in a completed refund case",
+            "ITEM_ALREADY_REFUNDED",
+            "An item recorded in a completed refund case cannot be refunded again.",
+            applicable=applicable,
+        )
+    )
+    return {
+        **result,
+        "policy_version": result.get("policy_version", REFUND_POLICY_VERSION),
+        "winning_rule": "duplicate_refund"
+        if duplicate_item_ids
+        else result.get("winning_rule", "within_policy"),
+        "policy_checks": checks,
     }

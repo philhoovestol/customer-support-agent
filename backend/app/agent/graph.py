@@ -14,10 +14,14 @@ from sqlmodel import Session, desc, select
 from app.agent.llm import get_llm
 from app.agent.prompts import SYSTEM_PROMPT
 from app.agent.tools import TOOLS, TOOLS_BY_NAME
-from app.audit import record_audit_event
+from app.audit import record_audit_event, redact_audit_text
 from app.database import engine
 from app.models import OrderItem, RefundCase
-from app.policy import evaluate_refund_from_db, protect_against_duplicate_refund
+from app.policy import (
+    REFUND_POLICY_VERSION,
+    evaluate_refund_from_db,
+    protect_against_duplicate_refund,
+)
 
 
 ORDER_RE = re.compile(r"\bORD-\d{4,}\b", re.IGNORECASE)
@@ -86,7 +90,7 @@ INFORMATION_FOLLOWUP_HINTS = (
 )
 HUMAN_REQUEST_PATTERNS = (
     re.compile(
-        r"\b(?:talk|speak|chat|connect|transfer|escalate)\b.*"
+        r"\b(?:talk|speak|chat|connect|transfer|escalate|raise|route|refer)\b.*"
         r"\b(?:human|person|representative|agent|manager|supervisor|someone)\b"
     ),
     re.compile(
@@ -119,6 +123,34 @@ CASE_FOLLOWUP_HINTS = (
     "unused",
     "wrong",
 )
+UNSAFE_CONVERSATIONAL_REPLY_PATTERNS = (
+    re.compile(r"\b(?:approv(?:e|ed|al)|den(?:y|ied)|eligib(?:le|ility))\b"),
+    re.compile(
+        r"\b(?:authoriz(?:e|ed|ation)|escalat(?:e|ed|ion)|exception|override|pending|"
+        r"process(?:ed|ing)?|issu(?:e|ed|ing))\b"
+    ),
+    re.compile(r"\b(?:your|the|this)\s+(?:case|refund|request)\b"),
+    re.compile(r"\bcase\s+[A-Z]{3}-[A-Z0-9]+\b", re.IGNORECASE),
+    re.compile(r"\b(?:ITEM|ORD)-\d+\b", re.IGNORECASE),
+    re.compile(r"\$\s*\d"),
+)
+SAFE_MODEL_FOLLOWUP_HINTS = {
+    "gratitude": (
+        "anytime",
+        "glad to help",
+        "happy to help",
+        "my pleasure",
+        "welcome",
+    ),
+    "acceptance": (
+        "got it",
+        "happy to help",
+        "here if",
+        "let me know",
+        "reach out",
+        "understood",
+    ),
+}
 
 
 class RefundAgentState(TypedDict, total=False):
@@ -137,6 +169,42 @@ class RefundAgentState(TypedDict, total=False):
 
 
 llm = get_llm(TOOLS)
+
+
+def describe_request(message: str) -> dict[str, Any]:
+    normalized = message.strip().lower()
+    order_ids = sorted({match.upper() for match in ORDER_RE.findall(message)})
+    item_ids = sorted({match.upper() for match in ITEM_RE.findall(message)})
+    email_present = EMAIL_RE.search(message) is not None
+
+    if any(pattern.search(normalized) for pattern in HUMAN_REQUEST_PATTERNS):
+        intent = "human_review"
+    elif _is_refund_confirmation_approval(normalized):
+        intent = "refund_confirmation"
+    elif any(hint in normalized for hint in CASE_FOLLOWUP_HINTS):
+        intent = "case_dispute"
+    elif order_ids or item_ids or _looks_like_refund_intent(normalized):
+        intent = "refund_request"
+    elif any(hint in normalized for hint in GRATITUDE_HINTS):
+        intent = "gratitude"
+    elif any(hint in normalized for hint in ACCEPTANCE_HINTS):
+        intent = "acceptance"
+    elif any(hint in normalized for hint in INFORMATION_FOLLOWUP_HINTS):
+        intent = "case_information"
+    elif email_present:
+        intent = "account_lookup"
+    else:
+        intent = "other"
+
+    return {
+        "message": redact_audit_text(message),
+        "detected_intent": intent,
+        "entities": {
+            "order_ids": order_ids,
+            "item_ids": item_ids,
+            "email_present": email_present,
+        },
+    }
 
 
 def _safe_json(value: str) -> dict[str, Any]:
@@ -408,6 +476,9 @@ def record_policy_decision(state: RefundAgentState) -> dict[str, Any]:
             "selected_item_ids": result.get("selected_item_ids", []),
             "reason_codes": result.get("reason_codes", []),
             "policy_citations": result.get("policy_citations", []),
+            "policy_version": result.get("policy_version"),
+            "winning_rule": result.get("winning_rule"),
+            "policy_checks": result.get("policy_checks", []),
             "customer_message": result.get("customer_message", ""),
         },
     )
@@ -445,6 +516,9 @@ def create_refund(state: RefundAgentState) -> dict[str, Any]:
                 "case_id": case_id,
                 "order_id": result.get("order_id"),
                 "duplicate_item_ids": result.get("duplicate_item_ids", []),
+                "policy_version": result.get("policy_version"),
+                "winning_rule": result.get("winning_rule"),
+                "policy_checks": result.get("policy_checks", []),
             },
         )
         return {"outcome_case_id": case_id, "policy_result": result}
@@ -671,6 +745,19 @@ def _human_review_result_from_case(refund_case: RefundCase) -> dict[str, Any]:
         "customer_id": refund_case.customer_id,
         "requested_item_ids": _json_list(refund_case.requested_item_ids_json),
         "selected_item_ids": _case_selected_item_ids(refund_case),
+        "policy_version": REFUND_POLICY_VERSION,
+        "winning_rule": "human_review_requested",
+        "policy_checks": [
+            {
+                "rule": "human_review_requested",
+                "label": "Customer requested human review",
+                "status": "failed",
+                "observed_value": True,
+                "expected": "No explicit human-review request",
+                "reason_code": "CUSTOMER_REQUESTED_HUMAN_REVIEW",
+                "citation": "Customer-requested human review is handled on the existing case.",
+            }
+        ],
     }
 
 
@@ -779,6 +866,7 @@ def compose_final(state: RefundAgentState) -> dict[str, Any]:
         state.get("case_followup")
         and state.get("case_followup_previous_decision") == decision
     ):
+        conversational_reply = _safe_conversational_reply(state)
         message = _compose_case_followup_message(
             decision,
             result,
@@ -786,6 +874,7 @@ def compose_final(state: RefundAgentState) -> dict[str, Any]:
             amount,
             state.get("case_followup_intent"),
             state.get("case_followup_previous_status"),
+            conversational_reply,
         )
     elif decision == "approve":
         message = _compose_refund_confirmation_request(result, case_id, amount, citation_text)
@@ -821,6 +910,7 @@ def _compose_case_followup_message(
     amount: float,
     intent: str | None,
     previous_status: str | None,
+    conversational_reply: str | None = None,
 ) -> str:
     if intent == "refund_confirmation":
         return (
@@ -836,13 +926,14 @@ def _compose_case_followup_message(
         )
 
     if intent == "gratitude":
-        if decision == "approve":
-            return f"You're welcome. Case {case_id} remains approved for ${amount:.2f}."
-        if decision == "escalate":
-            return f"You're welcome. Case {case_id} remains pending human review."
-        return f"You're welcome. This remains recorded under case {case_id}."
+        return conversational_reply or (
+            "You're welcome! If you need any assistance with refunds or have any other "
+            "questions in the future, feel free to reach out. Have a great day!"
+        )
 
     if intent == "acceptance":
+        if conversational_reply:
+            return conversational_reply
         if decision == "approve":
             return f"Got it. Case {case_id} remains approved for ${amount:.2f}."
         if decision == "escalate":
@@ -876,6 +967,25 @@ def _compose_case_followup_message(
         "customer_message",
         "I need a valid order number and item details before I can evaluate this refund.",
     )
+
+
+def _safe_conversational_reply(state: RefundAgentState) -> str | None:
+    intent = state.get("case_followup_intent")
+    reply_hints = SAFE_MODEL_FOLLOWUP_HINTS.get(intent or "")
+    if not reply_hints:
+        return None
+
+    content = _latest_ai_message(state).content
+    if not isinstance(content, str):
+        return None
+
+    reply = content.strip()
+    normalized_reply = reply.lower()
+    if not reply or not any(hint in normalized_reply for hint in reply_hints):
+        return None
+    if any(pattern.search(normalized_reply) for pattern in UNSAFE_CONVERSATIONAL_REPLY_PATTERNS):
+        return None
+    return reply
 
 
 def _compose_refund_confirmation_request(

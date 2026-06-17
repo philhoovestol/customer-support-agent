@@ -64,6 +64,24 @@ def test_final_sale_item_is_denied():
     assert "FINAL_SALE_ITEM" in result["reason_codes"]
 
 
+def test_policy_evidence_marks_winning_and_skipped_rules():
+    result = evaluate_refund(
+        make_order(),
+        [make_item(final_sale=True)],
+        ["ITEM-TEST"],
+        "Please make an exception.",
+        today=date(2026, 6, 16),
+    )
+
+    checks = {check["rule"]: check for check in result["policy_checks"]}
+    assert result["policy_version"] == "refund-policy-v1"
+    assert result["winning_rule"] == "final_sale_exclusion"
+    assert checks["verified_order"]["status"] == "passed"
+    assert checks["final_sale_exclusion"]["status"] == "failed"
+    assert checks["automatic_refund_limit"]["status"] == "not_applicable"
+    assert checks["automatic_refund_limit"]["detail"] == "Skipped after the decisive rule."
+
+
 def test_refund_over_500_is_escalated():
     result = evaluate_refund(
         make_order(total=649.0),
