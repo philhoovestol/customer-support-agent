@@ -1,0 +1,684 @@
+{
+  "customers": [
+    {
+      "id": "CUST-1001",
+      "name": "Maya Chen",
+      "email": "maya.chen@example.com",
+      "loyalty_tier": "Gold",
+      "refund_count_last_12_months": 0,
+      "notes": "Prefers email follow-up.",
+      "orders": [
+        {
+          "id": "ORD-1001",
+          "customer_id": "CUST-1001",
+          "order_date": "2026-06-02",
+          "delivered_date": "2026-06-05",
+          "status": "delivered",
+          "subtotal": 203.0,
+          "tax": 18.27,
+          "total": 221.27,
+          "items": [
+            {
+              "id": "ITEM-1001",
+              "order_id": "ORD-1001",
+              "sku": "BAG-ALPINE-01",
+              "name": "Alpine Daypack",
+              "category": "bags",
+              "quantity": 1,
+              "unit_price": 129.0,
+              "final_sale": false,
+              "opened": false,
+              "damaged": false
+            },
+            {
+              "id": "ITEM-1002",
+              "order_id": "ORD-1001",
+              "sku": "SUN-TORT-04",
+              "name": "Tortoise Shell Sunglasses",
+              "category": "accessories",
+              "quantity": 1,
+              "unit_price": 74.0,
+              "final_sale": true,
+              "opened": false,
+              "damaged": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CUST-1002",
+      "name": "Jordan Miles",
+      "email": "jordan.miles@example.com",
+      "loyalty_tier": "Standard",
+      "refund_count_last_12_months": 1,
+      "notes": "Asked about headphone warranty in May.",
+      "orders": [
+        {
+          "id": "ORD-1002",
+          "customer_id": "CUST-1002",
+          "order_date": "2026-06-07",
+          "delivered_date": "2026-06-10",
+          "status": "delivered",
+          "subtotal": 159.0,
+          "tax": 14.31,
+          "total": 173.31,
+          "items": [
+            {
+              "id": "ITEM-1003",
+              "order_id": "ORD-1002",
+              "sku": "AUD-WAVE-22",
+              "name": "Waveform Wireless Headphones",
+              "category": "electronics",
+              "quantity": 1,
+              "unit_price": 159.0,
+              "final_sale": false,
+              "opened": true,
+              "damaged": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CUST-1003",
+      "name": "Priya Shah",
+      "email": "priya.shah@example.com",
+      "loyalty_tier": "Platinum",
+      "refund_count_last_12_months": 0,
+      "notes": "High-value home goods buyer.",
+      "orders": [
+        {
+          "id": "ORD-1003",
+          "customer_id": "CUST-1003",
+          "order_date": "2026-06-04",
+          "delivered_date": "2026-06-08",
+          "status": "delivered",
+          "subtotal": 649.0,
+          "tax": 58.41,
+          "total": 707.41,
+          "items": [
+            {
+              "id": "ITEM-1004",
+              "order_id": "ORD-1003",
+              "sku": "KIT-ESP-900",
+              "name": "Barista Pro Espresso Machine",
+              "category": "kitchen",
+              "quantity": 1,
+              "unit_price": 649.0,
+              "final_sale": false,
+              "opened": true,
+              "damaged": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CUST-1004",
+      "name": "Theo Ramirez",
+      "email": "theo.ramirez@example.com",
+      "loyalty_tier": "Standard",
+      "refund_count_last_12_months": 0,
+      "notes": "No prior support history.",
+      "orders": [
+        {
+          "id": "ORD-1004",
+          "customer_id": "CUST-1004",
+          "order_date": "2026-04-18",
+          "delivered_date": "2026-04-22",
+          "status": "delivered",
+          "subtotal": 98.0,
+          "tax": 8.82,
+          "total": 106.82,
+          "items": [
+            {
+              "id": "ITEM-1005",
+              "order_id": "ORD-1004",
+              "sku": "SHO-CITY-10",
+              "name": "City Runner Sneakers",
+              "category": "footwear",
+              "quantity": 1,
+              "unit_price": 98.0,
+              "final_sale": false,
+              "opened": true,
+              "damaged": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CUST-1005",
+      "name": "Alana Brooks",
+      "email": "alana.brooks@example.com",
+      "loyalty_tier": "Silver",
+      "refund_count_last_12_months": 1,
+      "notes": "Package currently in transit.",
+      "orders": [
+        {
+          "id": "ORD-1005",
+          "customer_id": "CUST-1005",
+          "order_date": "2026-06-13",
+          "delivered_date": null,
+          "status": "in_transit",
+          "subtotal": 210.0,
+          "tax": 18.9,
+          "total": 228.9,
+          "items": [
+            {
+              "id": "ITEM-1006",
+              "order_id": "ORD-1005",
+              "sku": "OUT-RAIN-07",
+              "name": "Stormline Rain Jacket",
+              "category": "outerwear",
+              "quantity": 1,
+              "unit_price": 210.0,
+              "final_sale": false,
+              "opened": false,
+              "damaged": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CUST-1006",
+      "name": "Marcus Reed",
+      "email": "marcus.reed@example.com",
+      "loyalty_tier": "Gold",
+      "refund_count_last_12_months": 3,
+      "notes": "Account requires review after multiple recent refunds.",
+      "orders": [
+        {
+          "id": "ORD-1006",
+          "customer_id": "CUST-1006",
+          "order_date": "2026-06-02",
+          "delivered_date": "2026-06-06",
+          "status": "delivered",
+          "subtotal": 86.0,
+          "tax": 7.74,
+          "total": 93.74,
+          "items": [
+            {
+              "id": "ITEM-1007",
+              "order_id": "ORD-1006",
+              "sku": "HOM-LAMP-03",
+              "name": "Miro Desk Lamp",
+              "category": "home",
+              "quantity": 1,
+              "unit_price": 86.0,
+              "final_sale": false,
+              "opened": true,
+              "damaged": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CUST-1007",
+      "name": "Sofia Patel",
+      "email": "sofia.patel@example.com",
+      "loyalty_tier": "Standard",
+      "refund_count_last_12_months": 0,
+      "notes": "Opened personal care product.",
+      "orders": [
+        {
+          "id": "ORD-1007",
+          "customer_id": "CUST-1007",
+          "order_date": "2026-06-05",
+          "delivered_date": "2026-06-09",
+          "status": "delivered",
+          "subtotal": 42.0,
+          "tax": 3.78,
+          "total": 45.78,
+          "items": [
+            {
+              "id": "ITEM-1008",
+              "order_id": "ORD-1007",
+              "sku": "PC-SERUM-11",
+              "name": "Renewal Face Serum",
+              "category": "personal_care",
+              "quantity": 1,
+              "unit_price": 42.0,
+              "final_sale": false,
+              "opened": true,
+              "damaged": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CUST-1008",
+      "name": "Eli Morgan",
+      "email": "eli.morgan@example.com",
+      "loyalty_tier": "Silver",
+      "refund_count_last_12_months": 0,
+      "notes": "Reported damaged packaging.",
+      "orders": [
+        {
+          "id": "ORD-1008",
+          "customer_id": "CUST-1008",
+          "order_date": "2026-06-08",
+          "delivered_date": "2026-06-11",
+          "status": "delivered",
+          "subtotal": 38.0,
+          "tax": 3.42,
+          "total": 41.42,
+          "items": [
+            {
+              "id": "ITEM-1009",
+              "order_id": "ORD-1008",
+              "sku": "PC-CREAM-15",
+              "name": "Calm Barrier Cream",
+              "category": "personal_care",
+              "quantity": 1,
+              "unit_price": 38.0,
+              "final_sale": false,
+              "opened": true,
+              "damaged": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CUST-1009",
+      "name": "Nia Johnson",
+      "email": "nia.johnson@example.com",
+      "loyalty_tier": "Standard",
+      "refund_count_last_12_months": 0,
+      "notes": "Purchased a digital product.",
+      "orders": [
+        {
+          "id": "ORD-1009",
+          "customer_id": "CUST-1009",
+          "order_date": "2026-06-01",
+          "delivered_date": "2026-06-03",
+          "status": "delivered",
+          "subtotal": 45.0,
+          "tax": 4.05,
+          "total": 49.05,
+          "items": [
+            {
+              "id": "ITEM-1010",
+              "order_id": "ORD-1009",
+              "sku": "DIG-COOK-01",
+              "name": "Weekend Baking Digital Course",
+              "category": "digital",
+              "quantity": 1,
+              "unit_price": 45.0,
+              "final_sale": false,
+              "opened": true,
+              "damaged": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CUST-1010",
+      "name": "Omar Wilson",
+      "email": "omar.wilson@example.com",
+      "loyalty_tier": "Gold",
+      "refund_count_last_12_months": 1,
+      "notes": "Frequent apparel customer.",
+      "orders": [
+        {
+          "id": "ORD-1010",
+          "customer_id": "CUST-1010",
+          "order_date": "2026-05-28",
+          "delivered_date": "2026-06-01",
+          "status": "delivered",
+          "subtotal": 78.0,
+          "tax": 7.02,
+          "total": 85.02,
+          "items": [
+            {
+              "id": "ITEM-1011",
+              "order_id": "ORD-1010",
+              "sku": "APP-HOOD-08",
+              "name": "Everyday Loop Hoodie",
+              "category": "apparel",
+              "quantity": 1,
+              "unit_price": 78.0,
+              "final_sale": false,
+              "opened": true,
+              "damaged": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CUST-1011",
+      "name": "Hannah Lee",
+      "email": "hannah.lee@example.com",
+      "loyalty_tier": "Standard",
+      "refund_count_last_12_months": 1,
+      "notes": "Order already refunded by human agent.",
+      "orders": [
+        {
+          "id": "ORD-1011",
+          "customer_id": "CUST-1011",
+          "order_date": "2026-05-30",
+          "delivered_date": "2026-06-02",
+          "status": "refunded",
+          "subtotal": 64.0,
+          "tax": 5.76,
+          "total": 69.76,
+          "items": [
+            {
+              "id": "ITEM-1012",
+              "order_id": "ORD-1011",
+              "sku": "KIT-PAN-04",
+              "name": "Carbon Steel Pan",
+              "category": "kitchen",
+              "quantity": 1,
+              "unit_price": 64.0,
+              "final_sale": false,
+              "opened": true,
+              "damaged": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CUST-1012",
+      "name": "Lucas Nguyen",
+      "email": "lucas.nguyen@example.com",
+      "loyalty_tier": "Silver",
+      "refund_count_last_12_months": 0,
+      "notes": "Gift card purchaser.",
+      "orders": [
+        {
+          "id": "ORD-1012",
+          "customer_id": "CUST-1012",
+          "order_date": "2026-05-23",
+          "delivered_date": "2026-05-25",
+          "status": "delivered",
+          "subtotal": 100.0,
+          "tax": 0.0,
+          "total": 100.0,
+          "items": [
+            {
+              "id": "ITEM-1013",
+              "order_id": "ORD-1012",
+              "sku": "GFT-100",
+              "name": "Loopp Gift Card",
+              "category": "gift_card",
+              "quantity": 1,
+              "unit_price": 100.0,
+              "final_sale": false,
+              "opened": false,
+              "damaged": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CUST-1013",
+      "name": "Amara Okafor",
+      "email": "amara.okafor@example.com",
+      "loyalty_tier": "Platinum",
+      "refund_count_last_12_months": 2,
+      "notes": "Furniture buyer, below escalation threshold.",
+      "orders": [
+        {
+          "id": "ORD-1013",
+          "customer_id": "CUST-1013",
+          "order_date": "2026-06-09",
+          "delivered_date": "2026-06-12",
+          "status": "delivered",
+          "subtotal": 480.0,
+          "tax": 43.2,
+          "total": 523.2,
+          "items": [
+            {
+              "id": "ITEM-1014",
+              "order_id": "ORD-1013",
+              "sku": "HOM-CHAIR-21",
+              "name": "Ashwood Reading Chair",
+              "category": "home",
+              "quantity": 1,
+              "unit_price": 480.0,
+              "final_sale": false,
+              "opened": true,
+              "damaged": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CUST-1014",
+      "name": "Ben Carter",
+      "email": "ben.carter@example.com",
+      "loyalty_tier": "Gold",
+      "refund_count_last_12_months": 0,
+      "notes": "Multi-item order crosses the $500 threshold if refunded together.",
+      "orders": [
+        {
+          "id": "ORD-1014",
+          "customer_id": "CUST-1014",
+          "order_date": "2026-06-09",
+          "delivered_date": "2026-06-12",
+          "status": "delivered",
+          "subtotal": 530.0,
+          "tax": 47.7,
+          "total": 577.7,
+          "items": [
+            {
+              "id": "ITEM-1015",
+              "order_id": "ORD-1014",
+              "sku": "SHO-TRAIL-14",
+              "name": "Trail Guide Boots",
+              "category": "footwear",
+              "quantity": 1,
+              "unit_price": 140.0,
+              "final_sale": false,
+              "opened": true,
+              "damaged": false
+            },
+            {
+              "id": "ITEM-1016",
+              "order_id": "ORD-1014",
+              "sku": "OUT-PARKA-02",
+              "name": "Northline Winter Parka",
+              "category": "outerwear",
+              "quantity": 1,
+              "unit_price": 390.0,
+              "final_sale": false,
+              "opened": true,
+              "damaged": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CUST-1015",
+      "name": "Chloe Davis",
+      "email": "chloe.davis@example.com",
+      "loyalty_tier": "Standard",
+      "refund_count_last_12_months": 0,
+      "notes": "Suitcase arrived with a cracked wheel.",
+      "orders": [
+        {
+          "id": "ORD-1015",
+          "customer_id": "CUST-1015",
+          "order_date": "2026-06-03",
+          "delivered_date": "2026-06-07",
+          "status": "delivered",
+          "subtotal": 220.0,
+          "tax": 19.8,
+          "total": 239.8,
+          "items": [
+            {
+              "id": "ITEM-1017",
+              "order_id": "ORD-1015",
+              "sku": "TRV-CASE-05",
+              "name": "Contour Carry-On Suitcase",
+              "category": "travel",
+              "quantity": 1,
+              "unit_price": 220.0,
+              "final_sale": false,
+              "opened": true,
+              "damaged": true
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "refund_cases": [
+    {
+      "id": "HIST-CUST-1002-01",
+      "session_id": "seed-history-CUST-1002",
+      "customer_id": "CUST-1002",
+      "order_id": null,
+      "request_signature": "CUST-1002|historical|01",
+      "decision": "approve",
+      "status": "approved",
+      "amount": 89.0,
+      "requested_item_ids": [],
+      "selected_item_ids": [],
+      "reason_codes": ["IMPORTED_HISTORICAL_REFUND"],
+      "policy_citations": [],
+      "customer_message": "Imported historical refund record.",
+      "created_at": "2026-02-12T10:00:00"
+    },
+    {
+      "id": "HIST-CUST-1005-01",
+      "session_id": "seed-history-CUST-1005",
+      "customer_id": "CUST-1005",
+      "order_id": null,
+      "request_signature": "CUST-1005|historical|01",
+      "decision": "approve",
+      "status": "approved",
+      "amount": 55.0,
+      "requested_item_ids": [],
+      "selected_item_ids": [],
+      "reason_codes": ["IMPORTED_HISTORICAL_REFUND"],
+      "policy_citations": [],
+      "customer_message": "Imported historical refund record.",
+      "created_at": "2025-12-04T11:30:00"
+    },
+    {
+      "id": "HIST-CUST-1006-01",
+      "session_id": "seed-history-CUST-1006",
+      "customer_id": "CUST-1006",
+      "order_id": null,
+      "request_signature": "CUST-1006|historical|01",
+      "decision": "approve",
+      "status": "approved",
+      "amount": 44.0,
+      "requested_item_ids": [],
+      "selected_item_ids": [],
+      "reason_codes": ["IMPORTED_HISTORICAL_REFUND"],
+      "policy_citations": [],
+      "customer_message": "Imported historical refund record.",
+      "created_at": "2026-05-01T09:15:00"
+    },
+    {
+      "id": "HIST-CUST-1006-02",
+      "session_id": "seed-history-CUST-1006",
+      "customer_id": "CUST-1006",
+      "order_id": null,
+      "request_signature": "CUST-1006|historical|02",
+      "decision": "approve",
+      "status": "approved",
+      "amount": 72.0,
+      "requested_item_ids": [],
+      "selected_item_ids": [],
+      "reason_codes": ["IMPORTED_HISTORICAL_REFUND"],
+      "policy_citations": [],
+      "customer_message": "Imported historical refund record.",
+      "created_at": "2026-01-18T14:20:00"
+    },
+    {
+      "id": "HIST-CUST-1006-03",
+      "session_id": "seed-history-CUST-1006",
+      "customer_id": "CUST-1006",
+      "order_id": null,
+      "request_signature": "CUST-1006|historical|03",
+      "decision": "approve",
+      "status": "approved",
+      "amount": 105.0,
+      "requested_item_ids": [],
+      "selected_item_ids": [],
+      "reason_codes": ["IMPORTED_HISTORICAL_REFUND"],
+      "policy_citations": [],
+      "customer_message": "Imported historical refund record.",
+      "created_at": "2025-09-09T16:45:00"
+    },
+    {
+      "id": "HIST-CUST-1010-01",
+      "session_id": "seed-history-CUST-1010",
+      "customer_id": "CUST-1010",
+      "order_id": null,
+      "request_signature": "CUST-1010|historical|01",
+      "decision": "approve",
+      "status": "approved",
+      "amount": 68.0,
+      "requested_item_ids": [],
+      "selected_item_ids": [],
+      "reason_codes": ["IMPORTED_HISTORICAL_REFUND"],
+      "policy_citations": [],
+      "customer_message": "Imported historical refund record.",
+      "created_at": "2026-03-03T13:10:00"
+    },
+    {
+      "id": "HIST-CUST-1011-01",
+      "session_id": "seed-history-CUST-1011",
+      "customer_id": "CUST-1011",
+      "order_id": "ORD-1011",
+      "request_signature": "CUST-1011|ORD-1011|ITEM-1012",
+      "decision": "approve",
+      "status": "approved",
+      "amount": 64.0,
+      "requested_item_ids": ["ITEM-1012"],
+      "selected_item_ids": ["ITEM-1012"],
+      "reason_codes": ["IMPORTED_HISTORICAL_REFUND"],
+      "policy_citations": [],
+      "customer_message": "Imported historical refund record.",
+      "created_at": "2026-04-22T12:00:00"
+    },
+    {
+      "id": "HIST-CUST-1013-01",
+      "session_id": "seed-history-CUST-1013",
+      "customer_id": "CUST-1013",
+      "order_id": null,
+      "request_signature": "CUST-1013|historical|01",
+      "decision": "approve",
+      "status": "approved",
+      "amount": 125.0,
+      "requested_item_ids": [],
+      "selected_item_ids": [],
+      "reason_codes": ["IMPORTED_HISTORICAL_REFUND"],
+      "policy_citations": [],
+      "customer_message": "Imported historical refund record.",
+      "created_at": "2026-02-18T15:25:00"
+    },
+    {
+      "id": "HIST-CUST-1013-02",
+      "session_id": "seed-history-CUST-1013",
+      "customer_id": "CUST-1013",
+      "order_id": null,
+      "request_signature": "CUST-1013|historical|02",
+      "decision": "approve",
+      "status": "approved",
+      "amount": 210.0,
+      "requested_item_ids": [],
+      "selected_item_ids": [],
+      "reason_codes": ["IMPORTED_HISTORICAL_REFUND"],
+      "policy_citations": [],
+      "customer_message": "Imported historical refund record.",
+      "created_at": "2025-10-27T10:40:00"
+    }
+  ]
+}

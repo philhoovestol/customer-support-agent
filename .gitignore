@@ -1,0 +1,12 @@
+.venv/
+.idea/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.log
+*.egg-info/
+backend/support_agent.db
+backend/.env
+frontend/node_modules/
+frontend/dist/
+.tools/

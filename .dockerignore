@@ -1,0 +1,13 @@
+.git
+.idea
+.venv
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/*.egg-info
+**/*.log
+backend/.env
+backend/support_agent.db
+frontend/dist
+frontend/node_modules
