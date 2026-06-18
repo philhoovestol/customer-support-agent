@@ -2,7 +2,7 @@ import json
 import os
 
 from fastapi.testclient import TestClient
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 os.environ["LLM_PROVIDER"] = "mock"
 
@@ -533,6 +533,75 @@ def test_eligible_refund_waits_for_explicit_confirmation_then_processes_once():
     assert "remains approved" in fifth["message"]
     assert any(event["event_type"] == "case_continuation" for event in second["audit_events"])
     assert any(event["event_type"] == "case_continuation" for event in third["audit_events"])
+
+
+def test_confirmation_processes_when_model_rechecks_policy(monkeypatch):
+    original_llm = agent_graph.llm
+
+    class RedundantPolicyCheckLLM:
+        def invoke(self, messages):
+            latest_user_index = max(
+                index
+                for index, message in enumerate(messages)
+                if isinstance(message, HumanMessage)
+            )
+            latest_user_text = str(messages[latest_user_index].content).strip().lower()
+            has_tool_result = any(
+                isinstance(message, ToolMessage)
+                for message in messages[latest_user_index + 1 :]
+            )
+            if latest_user_text == "yes, process the refund" and not has_tool_result:
+                return AIMessage(
+                    content="",
+                    tool_calls=[
+                        {
+                            "name": "evaluate_refund_request",
+                            "args": {
+                                "order_id": "ORD-1010",
+                                "requested_item_ids": [],
+                                "reason": latest_user_text,
+                            },
+                            "id": "call_redundant_policy_check",
+                        }
+                    ],
+                )
+            return original_llm.invoke(messages)
+
+    monkeypatch.setattr(agent_graph, "llm", RedundantPolicyCheckLLM())
+
+    with TestClient(app) as client:
+        request = client.post(
+            "/api/chat",
+            json={"message": "I would like a refund"},
+        ).json()
+        details = client.post(
+            "/api/chat",
+            json={
+                "session_id": request["session_id"],
+                "message": "the order number is ORD-1010",
+            },
+        ).json()
+        confirmed = client.post(
+            "/api/chat",
+            json={
+                "session_id": request["session_id"],
+                "message": "yes, process the refund",
+            },
+        ).json()
+        cases = client.get("/api/admin/refund-cases").json()
+
+    case_id = _latest_policy_case_id(details, "approve")
+    refund_case = next(case for case in cases if case["id"] == case_id)
+    refund_events = [
+        event
+        for event in confirmed["audit_events"]
+        if event["event_type"] == "refund_created"
+    ]
+
+    assert "please confirm these details" in details["message"].lower()
+    assert "processed the $78.00 refund" in confirmed["message"].lower()
+    assert refund_case["status"] == "approved"
+    assert len(refund_events) == 1
 
 
 def test_completed_case_blocks_duplicate_item_across_sessions_and_at_confirmation():

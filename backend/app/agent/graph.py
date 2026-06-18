@@ -300,9 +300,6 @@ def route_after_model(state: RefundAgentState) -> Literal["tools", "policy_gate"
 
 
 def policy_gate(state: RefundAgentState) -> dict[str, Any]:
-    if state.get("policy_result"):
-        return {}
-
     continuation = _continued_case_policy_result(state)
     if continuation:
         record_audit_event(
@@ -324,6 +321,9 @@ def policy_gate(state: RefundAgentState) -> dict[str, Any]:
             "case_followup_previous_decision": continuation["previous_decision"],
             "case_followup_previous_status": continuation["previous_status"],
         }
+
+    if state.get("policy_result"):
+        return {}
 
     explicit_result = _explicit_request_policy_result(state)
     if explicit_result:
