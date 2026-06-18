@@ -1,4 +1,4 @@
-# Loopp Customer Support Agent
+# Customer Support Agent
 
 An agentic refund-processing web application for e-commerce support.
 
