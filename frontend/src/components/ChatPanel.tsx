@@ -48,7 +48,6 @@ export function ChatPanel({
       <header className="panel-header">
         <div>
           <p className="eyebrow">Customer Console</p>
-          <h1>Loopp Refund Agent</h1>
         </div>
         <button className="icon-button" type="button" onClick={onReset} title="New session">
           <RefreshCcw size={18} />

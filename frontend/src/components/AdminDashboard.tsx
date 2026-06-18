@@ -199,7 +199,6 @@ export function AdminDashboard({
       <header className="panel-header compact">
         <div>
           <p className="eyebrow">Admin Console</p>
-          <h2>Agent Trace</h2>
         </div>
         <button
           aria-label="Reload logs and cases"
