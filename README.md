@@ -14,5 +14,8 @@ locally without an API key. Set `LLM_PROVIDER=openai` and `OPENAI_API_KEY` in
 
 See [docs/RUNNING.md](docs/RUNNING.md) for setup steps.
 
+For a visual overview of how the chat agent turns a customer message into a
+response, see [docs/CHAT_AGENT_RESPONSE_FLOW.md](docs/CHAT_AGENT_RESPONSE_FLOW.md).
+
 For a public Render Starter deployment, see
 [docs/RENDER_DEPLOYMENT.md](docs/RENDER_DEPLOYMENT.md).
